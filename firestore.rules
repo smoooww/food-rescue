@@ -1,0 +1,33 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /listings/{listingId} {
+      // The staff account must be able to read inventory even if its email
+      // verification claim has not yet refreshed in the current ID token.
+      allow read: if isCalPolyUser() || isPantryStaff();
+      allow create: if isPantryStaff()
+        && request.resource.data.status == 'available'
+        && request.resource.data.foodType is string
+        && request.resource.data.category is string
+        && request.resource.data.stockLevel in ['low', 'moderate', 'high']
+        && request.resource.data.quantity is int
+        && request.resource.data.quantity >= 0;
+      allow update, delete: if isPantryStaff();
+    }
+
+    function isCalPolyUser() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email.matches('.*@calpoly\\.edu$');
+    }
+
+    function isPantryStaff() {
+      // Staff access is intentionally limited to this authenticated account.
+      // Do not require email verification here: the Firebase ID token can retain
+      // an older verification claim after the account has been verified.
+      return request.auth != null
+        && request.auth.token.email == 'pantry-staff@calpoly.edu';
+    }
+  }
+}

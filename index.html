@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#f4f1ea" />
+  <title>Mustang Pantry — Campus food, clearly shared</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Lato:wght@400;700;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="theme.css" />
+  <style>
+    .auth-panel{max-width:540px;margin:0 auto;padding:88px 32px 100px;text-align:center}.auth-form{max-width:390px;margin:38px auto 0;text-align:left}.auth-form .field{margin-bottom:22px}.auth-actions{display:flex;align-items:center;gap:12px;margin-top:28px}.secondary-button{border:1px solid var(--ink);border-radius:2px;background:transparent;color:var(--ink);padding:15px 17px;font-size:12px;font-weight:800}.label-note{color:var(--muted);font-family:var(--mono);font-size:9px;font-weight:400;text-transform:uppercase}.verification-panel{max-width:390px;margin:35px auto 0;text-align:left}.verification-icon{display:grid;place-items:center;width:44px;height:44px;border-radius:50%;background:var(--gold);color:var(--forest);font-family:var(--serif);font-size:24px;font-weight:700}.verification-panel h2{margin:17px 0 9px;font-family:var(--serif);font-size:28px;color:var(--forest)}.verification-panel p{color:var(--muted);font-size:13px;line-height:1.6}.verification-panel strong{color:var(--ink);overflow-wrap:anywhere}.hours-panel{max-width:790px;margin:0 auto 45px;padding:26px 34px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:30px}.hours-panel h2{margin:7px 0 0;font-family:var(--serif);font-size:27px}.hours-grid{display:grid;grid-template-columns:auto auto;gap:8px 20px;color:var(--muted);font-size:12px}.hours-grid strong{color:var(--ink);font-size:11px}.listing-notes{margin:13px 0 0;color:var(--muted);font-size:12px}.listing-photo{width:84px;height:84px;object-fit:cover;border-radius:2px}.category:before{content:'◈';color:var(--coral);margin-right:6px}.updated:before{content:'↻';color:var(--coral);margin-right:6px}@media(max-width:600px){.auth-panel{padding:65px 20px 70px}.auth-actions{align-items:stretch;flex-direction:column}.secondary-button{width:100%}.verification-panel{margin-top:30px}.hours-panel{margin:0 14px 40px;padding:24px 20px;display:block}.hours-grid{margin-top:20px}}
+  </style>
+  <style>
+    .staff-tools{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:22px 34px;border-bottom:1px solid var(--line);background:#f6faf5}.staff-tools div{display:grid;gap:4px}.staff-tools strong{color:var(--forest);font-family:var(--serif);font-size:21px}.staff-tools span{color:var(--muted);font-size:11px}.staff-tools .secondary-button{white-space:nowrap}.staff-inventory{padding:0 34px}.staff-stock-row{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:16px 0;border-bottom:1px solid var(--line)}.staff-stock-row>div:first-child{display:grid;gap:4px}.staff-stock-row strong{color:var(--forest);font-size:14px}.staff-stock-row span{color:var(--muted);font-size:11px}.quantity-control{display:flex;align-items:center;gap:12px}.quantity-control button{display:grid;place-items:center;width:30px;height:30px;border:1px solid var(--mustang);border-radius:50%;background:transparent;color:var(--mustang);font-size:20px;line-height:1}.quantity-control button:hover{background:var(--mustang);color:#fff}.quantity-control button:disabled{opacity:.5;cursor:wait}.quantity-control output{min-width:24px;text-align:center;color:var(--forest);font-weight:800}.inventory-empty{padding:22px 0;color:var(--muted);font-size:12px}@media(max-width:600px){.staff-tools{align-items:stretch;flex-direction:column;padding:20px}.staff-tools .secondary-button{width:100%}.staff-inventory{padding:0 20px}}
+  </style>
+  <style>
+    :root{--serif:'Lato',Arial,sans-serif;--sans:'Lato',Arial,sans-serif}
+    h1{letter-spacing:-.02em}
+    h1 em{font-style:normal;font-weight:600}
+    .listing-card{transition:background-color .18s ease,box-shadow .18s ease,border-color .18s ease}
+    .listing-card:hover{background:rgba(47,126,116,.07);border-color:rgba(47,126,116,.26);box-shadow:0 8px 18px rgba(21,71,52,.08)}
+    .listing-card{grid-template-columns:minmax(0,1fr) 84px 88px;align-items:center}
+    .listing-photo-slot{width:84px;height:84px;display:grid;place-items:center}
+    .listing-photo-slot .listing-photo{width:100%;height:100%;object-fit:cover}
+    .listing-main h3{font-size:20px;line-height:1.2}
+    .staff-stock-row strong{font-size:20px;line-height:1.2}
+    .listing-form .field{font-family:var(--serif);font-size:20px;font-weight:700;letter-spacing:0}
+    .listing-form .label-note{font-family:var(--sans);font-size:11px;font-weight:400}
+    .inventory-sort{display:flex;align-items:center;gap:8px;padding:14px 34px;border-bottom:1px solid var(--line);background:#fbfdfb;color:var(--muted);font-size:12px}
+    .inventory-sort-button{border:1px solid var(--line);border-radius:3px;background:transparent;color:var(--mustang);padding:7px 11px;font-family:var(--sans);font-size:12px;font-weight:700}
+    .inventory-sort-button:hover,.inventory-sort-button.active{background:var(--mustang);border-color:var(--mustang);color:#fff}
+    .auth-form .field{font-family:var(--serif);font-size:17px;font-weight:700;letter-spacing:0}
+    .auth-form .field input{font-family:var(--sans);font-size:16px}
+    .quantity-control{gap:0}
+    .quantity-input{width:70px;height:38px;border:1px solid var(--mustang);border-radius:3px;background:#fff;color:var(--forest);font-family:var(--sans);font-size:16px;font-weight:700;text-align:center}
+    .quantity-input:focus{outline:2px solid var(--gold);outline-offset:2px}
+    .quantity-input:disabled{opacity:.55;cursor:wait}
+    .listing-meta{font-size:14px}
+    .listing-notes{font-size:14px}
+    .remove-button{grid-column:3;grid-row:1;justify-self:center;align-self:center;display:flex;flex-direction:column;align-items:center;gap:3px;width:74px;margin:0;padding:0;border:0;background:transparent;color:#b3261e;line-height:1}
+    .remove-button:hover{background:transparent;color:#7e211d}
+    .trash-icon{position:relative;display:block;width:12px;height:14px;border:2px solid currentColor;border-top:0;border-radius:0 0 3px 3px}
+    .trash-icon:before{content:'';position:absolute;top:-5px;left:-3px;width:14px;border-top:2px solid currentColor}
+    .trash-icon:after{content:'';position:absolute;top:-8px;left:3px;height:3px;border-left:2px solid currentColor}
+    .remove-label{font-size:10px;font-weight:800;white-space:nowrap}
+    @media(max-width:600px){.listing-card{grid-template-columns:minmax(0,1fr) 64px 68px}.listing-photo-slot{width:64px;height:64px}.listing-main h3,.staff-stock-row strong,.listing-form .field{font-size:18px}.listing-meta,.listing-notes{font-size:13px}.remove-button{width:68px}.inventory-sort{align-items:flex-start;flex-wrap:wrap;padding:14px 20px}.inventory-sort-button{font-size:11px;padding:7px 9px}}
+  </style>
+</head>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
+  import { getFirestore } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
+  import { getAuth } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDDfrZNJNrCTiuRQIYmzycgBrTZ46FZzfM",
+    authDomain: "food-rescue-4c0d7.firebaseapp.com",
+    projectId: "food-rescue-4c0d7",
+    storageBucket: "food-rescue-4c0d7.firebasestorage.app",
+    messagingSenderId: "53809238962",
+    appId: "1:53809238962:web:0962c4f9e1d1bc0347caab",
+    measurementId: "G-K7231YFFWN"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  window.db = getFirestore(app);
+  window.auth = getAuth(app);
+</script>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#top" aria-label="Mustang Pantry home"><span class="brand-mark">m</span><span>mustang pantry</span></a>
+    <div class="topbar-meta"><span class="signal-dot"></span><span>Cal Poly SLO</span><span class="meta-divider"></span><span id="userEmail">Not signed in</span></div>
+    <button class="text-button hidden" id="signOut" type="button">Sign out</button>
+  </header>
+
+  <section class="auth-panel" id="authPanel">
+    <div class="eyebrow"><span class="eyebrow-line"></span>Cal Poly community access<span class="eyebrow-line"></span></div>
+    <h1>Food should be<br /><em>easy to find.</em></h1>
+    <p class="intro-copy">See what is in stock at the Cal Poly Food Pantry, or help keep today’s board current.</p>
+    <form id="authForm" class="auth-form">
+      <label class="field">Your @calpoly.edu email<input id="email" type="email" placeholder="you@calpoly.edu" autocomplete="email" required /></label>
+      <label class="field">Password<input id="password" type="password" placeholder="At least 6 characters" autocomplete="current-password" minlength="6" required /></label>
+      <div class="auth-actions"><button class="primary-button" id="signIn" type="submit">Sign in <span class="button-arrow">↗</span></button><button class="secondary-button" id="createAccount" type="button">Create account</button></div>
+      <p class="form-status" id="authStatus" role="status"></p>
+    </form>
+    <section id="verificationPanel" class="verification-panel hidden" aria-live="polite">
+      <span class="verification-icon">@</span>
+      <h2>Check your email inbox.</h2>
+      <p>We sent a confirmation link to <strong id="verificationEmail"></strong>. Open that link, then return here.</p>
+      <div class="auth-actions"><button class="primary-button" id="checkVerification" type="button">I verified my email</button><button class="secondary-button" id="resendVerification" type="button">Resend email</button></div>
+      <p class="form-status" id="verificationStatus" role="status"></p>
+    </section>
+  </section>
+
+  <main id="top" class="hidden">
+    <section class="intro">
+      <div class="eyebrow"><span class="eyebrow-line"></span>Campus food pantry<span class="eyebrow-line"></span></div>
+      <h1>Today’s pantry,<br /><em>at a glance.</em></h1>
+      <p class="intro-copy">A simple daily view of what is currently in stock for the Cal Poly community.</p>
+
+      <div class="role-switch" role="tablist" aria-label="Choose your role">
+        <button class="role-tab active" type="button" role="tab" aria-selected="true" data-role="staff">Update pantry stock</button>
+        <button class="role-tab" type="button" role="tab" aria-selected="false" data-role="student">Browse what’s available</button>
+      </div>
+    </section>
+
+    <section class="workspace" aria-live="polite">
+      <div class="section-heading">
+          <div><span class="kicker">Pantry staff view</span><h2>Update today’s stock</h2></div>
+        <span class="step-count">DAILY</span>
+      </div>
+      <div class="staff-tools">
+        <div><strong>Today’s list</strong><span>Start with yesterday, then adjust what’s left.</span></div>
+        <button class="secondary-button" id="copyYesterday" type="button">Copy from yesterday <span class="button-arrow">↗</span></button>
+      </div>
+      <div class="inventory-sort" aria-label="Sort today’s stock">
+        <span>Sort by</span>
+        <button type="button" class="inventory-sort-button active" data-inventory-sort="alphabetical">A–Z</button>
+        <button type="button" class="inventory-sort-button" data-inventory-sort="high">High stock</button>
+        <button type="button" class="inventory-sort-button" data-inventory-sort="low">Low stock</button>
+      </div>
+      <div id="staffInventory" class="staff-inventory" aria-live="polite"></div>
+      <form id="listingForm" class="listing-form">
+        <label class="field field-wide">What is in stock?
+          <input id="foodType" name="foodType" placeholder="e.g. Brown rice, canned tomatoes" required maxlength="80" />
+        </label>
+        <label class="field">Category
+          <select id="category" name="category" required><option value="">Choose a category</option><option>Grains and pasta</option><option>Fresh produce</option><option>Dairy</option><option>Canned food</option><option>Pastry</option><option>Hygiene</option><option>Other</option></select>
+        </label>
+        <label class="field">Stock level
+          <select id="stockLevel" name="stockLevel" required><option value="">Choose stock level</option><option value="low">Low stock</option><option value="moderate">Moderate stock</option><option value="high">High stock</option></select>
+        </label>
+        <label class="field field-wide">Add a photo <span class="label-note">optional · JPG, PNG, or WEBP</span>
+          <input id="photoFile" name="photoFile" type="file" accept="image/jpeg,image/png,image/webp" />
+        </label>
+        <label class="field field-wide">Notes <span class="label-note">optional</span>
+          <input id="notes" name="notes" placeholder="e.g. Available while supplies last" maxlength="120" />
+        </label>
+        <button class="primary-button" type="submit">Add to today’s stock <span class="button-arrow">↗</span></button>
+        <p class="form-note"><span>↳</span> Stock is shared with signed-in Cal Poly users.</p>
+        <p class="form-status" id="formStatus" role="status"></p>
+      </form>
+
+      <div class="feed-view hidden">
+        <div class="section-heading feed-heading">
+          <div><span class="kicker">Student view</span><h2>Available today</h2></div>
+          <span class="availability"><span class="signal-dot"></span><span id="listingCount">0</span> items in stock</span>
+        </div>
+        <div class="inventory-sort student-sort" aria-label="Sort available stock">
+          <span>Sort by</span>
+          <button type="button" class="inventory-sort-button active" data-feed-sort="alphabetical">A–Z</button>
+          <button type="button" class="inventory-sort-button" data-feed-sort="high">High stock</button>
+          <button type="button" class="inventory-sort-button" data-feed-sort="low">Low stock</button>
+        </div>
+        <div id="listingFeed" class="listing-feed"></div>
+        <div id="emptyState" class="empty-state hidden"><span class="empty-icon">+</span><h3>Nothing posted yet.</h3><p>Check back when today’s pantry stock is updated.</p></div>
+      </div>
+    </section>
+
+    <section class="hours-panel"><div><span class="kicker">Plan your visit</span><h2>Pantry hours</h2></div><div class="hours-grid"><strong>Mon–Fri</strong><span>8:30 AM – 6:00 PM</span><strong>Location</strong><span>Lower level, Campus Health &amp; Wellbeing (Building 27, Room 10)</span></div></section>
+
+    <section class="trust-strip"><div><span class="trust-icon">◎</span><strong>Cal Poly only</strong><span>Private campus access.</span></div><div><span class="trust-icon">↻</span><strong>Updated daily</strong><span>Fresh stock, no guesswork.</span></div><div><span class="trust-icon">⌁</span><strong>Community care</strong><span>Take what you need.</span></div></section>
+  </main>
+  <footer><span>Mustang Pantry / Cal Poly San Luis Obispo</span><span>Built for campus care</span></footer>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
