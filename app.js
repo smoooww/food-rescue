@@ -1,29 +1,16 @@
-import {
-  addDoc,
-  collection,
-  deleteDoc,
-  doc,
-  onSnapshot,
-  query,
-  updateDoc,
-  where
-} from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js';
-import {
-  createUserWithEmailAndPassword,
-  onAuthStateChanged,
-  sendEmailVerification,
-  signInWithEmailAndPassword,
-  signOut
-} from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js';
+import { supabase } from './supabase-client.js';
 
+let currentUser = null;
+let pendingEmail = '';
+const emailRedirectTo = new URL('./', window.location.href).href;
 const cloudinaryCloudName = 'oux3y1xq';
 const cloudinaryUploadPreset = 'mustang_pantry_uploads';
 const allowedDomain = '@calpoly.edu';
-// Keep this list identical to the organizer list in firestore.rules.
+// Keep this list identical to the organizer list in supabase/schema.sql.
 const pantryStaffEmails = new Set([
   'pantry-staff@calpoly.edu'
 ]);
-const listingsCollection = () => collection(window.db, 'listings');
+
 
 const authPanel = document.querySelector('#authPanel');
 const authForm = document.querySelector('#authForm');
@@ -110,7 +97,7 @@ function renderFeed(listings = liveListings) {
       if (feedSort === 'low') return stockOrder[listingStockLevel(first)] - stockOrder[listingStockLevel(second)] || first.foodType.localeCompare(second.foodType);
       return first.foodType.localeCompare(second.foodType);
     });
-  const canManageStock = pantryStaffEmails.has(window.auth.currentUser?.email?.toLowerCase());
+  const canManageStock = pantryStaffEmails.has(currentUser?.email?.toLowerCase());
   listingCount.textContent = sortedListings.length;
   listingFeed.innerHTML = sortedListings.map(listing => `
     <article class="listing-card">
@@ -146,7 +133,7 @@ function renderStaffInventory() {
 }
 
 function setRole(role) {
-  if (role === 'staff' && !pantryStaffEmails.has(window.auth.currentUser?.email?.toLowerCase())) {
+  if (role === 'staff' && !pantryStaffEmails.has(currentUser?.email?.toLowerCase())) {
     role = 'student';
   }
   const isStudent = role === 'student';
@@ -170,13 +157,50 @@ function showFormStatus(message, isError = false) {
   formStatus.classList.toggle('error', isError);
 }
 
+let listingsChannel = null;
+let listingsTimer = null;
+let subscriptionVersion = 0;
+let latestRead = 0;
+
+function stopListings() {
+  subscriptionVersion++;
+  if (listingsChannel) void supabase.removeChannel(listingsChannel);
+  listingsChannel = null;
+  clearInterval(listingsTimer);
+  liveListings = [];
+  renderFeed();
+  renderStaffInventory();
+}
+
+async function refreshListings() {
+  const version = subscriptionVersion;
+  const read = ++latestRead;
+  const { data, error } = await supabase.from('listings').select('*').eq('status', 'available');
+  if (version !== subscriptionVersion || read !== latestRead) return;
+  if (error) {
+    document.querySelector('#inventoryStatus').textContent = 'Unable to load pantry stock. Check your connection and Supabase access settings.';
+    console.error(error);
+    return;
+  }
+  document.querySelector('#inventoryStatus').textContent = '';
+  liveListings = data;
+  renderFeed();
+  renderStaffInventory();
+}
+
 function subscribeToListings() {
-  const listingsQuery = query(listingsCollection(), where('status', '==', 'available'));
-  onSnapshot(listingsQuery, snapshot => {
-    liveListings = snapshot.docs.map(item => ({ id: item.id, ...item.data() }));
-    if (document.querySelector('[data-role="student"]')?.getAttribute('aria-selected') === 'true') renderFeed();
-    else renderStaffInventory();
-  }, error => console.error('Unable to read live listings:', error));
+  listingsChannel = supabase.channel('pantry-listings')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'listings' }, () => void refreshListings())
+    .subscribe(status => { if (status === 'SUBSCRIBED') void refreshListings(); });
+  void refreshListings();
+  // Reconcile missed events after reconnects, including deleted rows.
+  listingsTimer = setInterval(() => void refreshListings(), 30000);
+}
+
+async function insertListings(rows) {
+  const { data, error } = await supabase.from('listings').insert(rows).select();
+  if (error) throw error;
+  return data;
 }
 
 roleTabs.forEach(tab => tab.addEventListener('click', () => setRole(tab.dataset.role)));
@@ -195,28 +219,14 @@ feedSortButtons.forEach(button => button.addEventListener('click', () => {
 
 function authErrorMessage(error) {
   const messages = {
-    'auth/invalid-credential': 'Incorrect email or password.',
-    'auth/email-already-in-use': 'That account already exists. Sign in instead.',
-    'auth/weak-password': 'Use a password with at least 6 characters.',
-    'auth/invalid-email': 'Enter a valid @calpoly.edu email address.',
-    'auth/operation-not-allowed': 'Email/password sign-in is disabled in Firebase Authentication.',
-    'auth/too-many-requests': 'Too many attempts. Wait a few minutes and try again.',
-    'auth/quota-exceeded': 'Firebase email delivery is temporarily limited. Try again later.',
-    'auth/network-request-failed': 'Network request failed. Check your internet connection and try again.',
-    'auth/invalid-api-key': 'The Firebase API key is invalid. Check the Firebase configuration in index.html.'
+    invalid_credentials: 'Incorrect email or password.',
+    email_not_confirmed: 'Confirm your email before signing in.',
+    user_already_exists: 'That account already exists. Sign in instead.',
+    weak_password: 'Use a password with at least 6 characters.',
+    over_email_send_rate_limit: 'Too many emails requested. Wait a few minutes and try again.',
+    email_address_not_authorized: 'Email delivery requires custom SMTP. See the README setup instructions.'
   };
-  return messages[error.code] || `Firebase rejected the request (${error.code || 'unknown error'}).`;
-}
-
-function verificationEmailMessage(error) {
-  const messages = {
-    'auth/too-many-requests': 'Too many emails were requested. Wait a few minutes before trying again.',
-    'auth/quota-exceeded': 'Firebase email delivery is temporarily limited. Try again later.',
-    'auth/operation-not-allowed': 'Email/password authentication is disabled in Firebase.',
-    'auth/unauthorized-continue-uri': 'This site must be added to Firebase Authentication’s Authorized domains before verification emails can be sent.',
-    'auth/invalid-continue-uri': 'The verification return link is not configured correctly in Firebase Authentication.'
-  };
-  return messages[error.code] || 'Firebase could not send the verification email. Check Authentication email settings.';
+  return messages[error.code] || error.message || 'The request failed. Please try again.';
 }
 
 function showVerificationMessage(message, isError = false) {
@@ -224,11 +234,11 @@ function showVerificationMessage(message, isError = false) {
   verificationStatus.classList.toggle('error', isError);
 }
 
-async function sendVerificationEmail(user, successMessage) {
-  if (!user) throw new Error('auth/no-current-user');
-  await sendEmailVerification(user);
-  verificationEmail.textContent = user.email;
-  showVerificationMessage(successMessage);
+function showPendingVerification(email) {
+  pendingEmail = email;
+  verificationEmail.textContent = email;
+  verificationPanel.classList.remove('hidden');
+  showVerificationMessage('Open the confirmation link in your email, then sign in. Check spam and junk folders too.');
 }
 
 form.addEventListener('submit', async event => {
@@ -244,16 +254,16 @@ form.addEventListener('submit', async event => {
       showFormStatus('Uploading photo...');
       photoUrl = await uploadPhoto(photoFile.files[0]);
     }
-    const listing = { foodType: data.get('foodType'), category: data.get('category'), photoUrl, notes: data.get('notes'), postedAt: Date.now(), stockDate: localDateKey(), stockLevel, quantity, status: 'available', postedBy: window.auth.currentUser.email };
-    const createdListing = await addDoc(listingsCollection(), listing);
+    const listing = { foodType: data.get('foodType'), category: data.get('category'), photoUrl, notes: data.get('notes'), postedAt: Date.now(), stockDate: localDateKey(), stockLevel, quantity, status: 'available', postedBy: currentUser.email };
+    const [createdListing] = await insertListings([listing]);
     liveListings = [{ id: createdListing.id, ...listing }, ...liveListings.filter(item => item.id !== createdListing.id)];
     form.reset();
     showFormStatus('Stock added. Opening the student view...');
     setRole('student');
   } catch (error) {
     console.error('Unable to post listing:', error);
-    const messages = { 'invalid-stock-level': 'Choose low, moderate, or high stock.', 'photo-too-large': 'Photo is too large. Choose an image under 5 MB.', 'photo-type-not-supported': 'Choose a JPG, PNG, or WEBP image.', 'cloudinary-upload-failed': 'Cloudinary rejected the photo. Check the upload preset name.', 'permission-denied': 'Your account is not authorized to update pantry stock.' };
-    showFormStatus(messages[error.code] || messages[error.message] || 'The item could not be posted. Check Cloudinary and Firestore rules.', true);
+    const messages = { 'invalid-stock-level': 'Choose low, moderate, or high stock.', 'photo-too-large': 'Photo is too large. Choose an image under 5 MB.', 'photo-type-not-supported': 'Choose a JPG, PNG, or WEBP image.', 'cloudinary-upload-failed': 'Cloudinary rejected the photo. Check the upload preset name.', '42501': 'Supabase denied this save. Run the updated supabase/schema.sql in your project’s SQL Editor, then sign in with the confirmed pantry-staff@calpoly.edu account.', 'permission-denied': 'Your account is not authorized to update pantry stock.' };
+    showFormStatus(messages[error.code] || messages[error.message] || `The item could not be posted: ${error.message || 'Check your connection and try again.'}${error.code ? ` (${error.code})` : ''}`, true);
   }
 });
 
@@ -267,7 +277,8 @@ staffInventory.addEventListener('change', async event => {
   if (!nextQuantity) return;
   input.disabled = true;
   try {
-    await updateDoc(doc(window.db, 'listings', listing.id), { stockLevel: nextStockLevel, quantity: nextQuantity });
+    const { error } = await supabase.from('listings').update({ stockLevel: nextStockLevel, quantity: nextQuantity }).eq('id', listing.id).select('id').single();
+    if (error) throw error;
     liveListings = liveListings.map(item => item.id === listing.id ? { ...item, stockLevel: nextStockLevel, quantity: nextQuantity } : item);
     renderStaffInventory();
   } catch (error) {
@@ -290,13 +301,14 @@ copyYesterdayButton.addEventListener('click', async () => {
   copyYesterdayButton.disabled = true;
   showFormStatus('Copying yesterday\'s list...');
   try {
-    const copiedListings = await Promise.all(yesterdayListings.map(async listing => {
+    const copies = yesterdayListings.map(listing => {
       const stockLevel = listingStockLevel(listing);
-      const copy = { foodType: listing.foodType, category: listing.category, photoUrl: listing.photoUrl || '', notes: listing.notes || '', postedAt: Date.now(), stockDate: localDateKey(), stockLevel, quantity: stockLevelQuantities[stockLevel], status: 'available', postedBy: window.auth.currentUser.email };
-      const createdListing = await addDoc(listingsCollection(), copy);
-      return { id: createdListing.id, ...copy };
-    }));
-    liveListings = [...copiedListings, ...liveListings];
+      const copy = { foodType: listing.foodType, category: listing.category, photoUrl: listing.photoUrl || '', notes: listing.notes || '', postedAt: Date.now(), stockDate: localDateKey(), stockLevel, quantity: stockLevelQuantities[stockLevel], status: 'available', postedBy: currentUser.email };
+      return copy;
+    });
+    const copiedListings = await insertListings(copies);
+    const copiedIds = new Set(copiedListings.map(item => item.id));
+    liveListings = [...copiedListings, ...liveListings.filter(item => !copiedIds.has(item.id))];
     renderStaffInventory();
     showFormStatus(`${copiedListings.length} item${copiedListings.length === 1 ? '' : 's'} copied. Adjust quantities below.`);
   } catch (error) {
@@ -312,7 +324,9 @@ listingFeed.addEventListener('click', async event => {
   if (!button || !window.confirm("Remove this item from today's pantry stock?")) return;
   button.disabled = true;
   try {
-    await deleteDoc(doc(window.db, 'listings', button.dataset.removeId));
+    const { error } = await supabase.from('listings').delete().eq('id', button.dataset.removeId).select('id').single();
+    if (error) throw error;
+    await refreshListings();
   } catch (error) {
     console.error('Unable to remove listing:', error);
     button.disabled = false;
@@ -330,11 +344,12 @@ authForm.addEventListener('submit', async event => {
   }
   authStatus.textContent = 'Signing in...';
   try {
-    const credential = await signInWithEmailAndPassword(window.auth, email, password);
-    if (!credential.user.emailVerified) {
-      authStatus.textContent = '';
-      showVerificationMessage('Check your inbox for the verification email, or use Resend email if you need another copy.');
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      if (error.code === 'email_not_confirmed') showPendingVerification(email);
+      throw error;
     }
+    authStatus.textContent = '';
   } catch (error) {
     console.error('Sign-in failed:', error);
     authStatus.textContent = authErrorMessage(error);
@@ -351,14 +366,10 @@ createAccountButton.addEventListener('click', async () => {
   authStatus.textContent = 'Creating your account...';
   createAccountButton.disabled = true;
   try {
-    const credential = await createUserWithEmailAndPassword(window.auth, email, password);
+    const { data, error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo } });
+    if (error) throw error;
     authStatus.textContent = '';
-    try {
-      await sendVerificationEmail(credential.user, 'Verification email sent. Check your inbox, spam, and junk folders.');
-    } catch (error) {
-      console.error('Verification email failed:', error);
-      showVerificationMessage(`${verificationEmailMessage(error)} (${error.code || 'unknown error'})`, true);
-    }
+    if (!data.session) showPendingVerification(email);
   } catch (error) {
     console.error('Account creation failed:', error);
     authStatus.textContent = authErrorMessage(error);
@@ -367,52 +378,58 @@ createAccountButton.addEventListener('click', async () => {
   }
 });
 
-signOutButton?.addEventListener('click', () => signOut(window.auth));
+signOutButton.addEventListener('click', async () => {
+  const { error } = await supabase.auth.signOut();
+  if (error) window.alert(authErrorMessage(error));
+});
 
-async function showVerifiedApp(user) {
-  const verified = user?.emailVerified === true;
+function showVerifiedApp(user) {
+  currentUser = user;
+  stopListings();
+  const canUseApp = Boolean(user?.email_confirmed_at && user.email?.toLowerCase().endsWith(allowedDomain));
   const isStaff = pantryStaffEmails.has(user?.email?.toLowerCase());
-  const canUseApp = verified || isStaff;
   authPanel.classList.toggle('hidden', canUseApp);
-  authForm.classList.toggle('hidden', canUseApp || Boolean(user));
-  verificationPanel.classList.toggle('hidden', canUseApp || !user);
+  authForm.classList.toggle('hidden', canUseApp);
+  verificationPanel.classList.add('hidden');
   appShell.classList.toggle('hidden', !canUseApp);
   signOutButton.classList.toggle('hidden', !user);
-  userEmail.textContent = user ? user.email : 'Not signed in';
-  if (user && !canUseApp) {
-    verificationEmail.textContent = user.email;
-    if (!verificationStatus.textContent) showVerificationMessage('Your pantry access is locked until email confirmation.');
-    return;
-  }
+  userEmail.textContent = user?.email || 'Not signed in';
   if (canUseApp) {
-    // Refresh the token so Firestore receives the current authentication claims.
-    await user.getIdToken(true);
-    document.querySelector('[data-role="staff"]')?.classList.toggle('hidden', !isStaff);
+    pendingEmail = '';
+    document.querySelector('[data-role="staff"]').classList.toggle('hidden', !isStaff);
     setRole(isStaff ? 'staff' : 'student');
     subscribeToListings();
+  } else if (user) {
+    authStatus.textContent = 'A confirmed @calpoly.edu account is required. Sign out to use another account.';
   }
 }
 
 resendVerificationButton.addEventListener('click', async () => {
   resendVerificationButton.disabled = true;
   try {
-    await sendVerificationEmail(window.auth.currentUser, 'A new verification email is on its way. Check spam or junk folders too.');
+    const { error } = await supabase.auth.resend({ type: 'signup', email: pendingEmail, options: { emailRedirectTo } });
+    if (error) throw error;
+    showVerificationMessage('A new confirmation email is on its way.');
   } catch (error) {
-    console.error('Verification email failed:', error);
-    showVerificationMessage(`${verificationEmailMessage(error)} (${error.code || 'unknown error'})`, true);
+    showVerificationMessage(authErrorMessage(error), true);
   } finally {
     resendVerificationButton.disabled = false;
   }
 });
 
-checkVerificationButton.addEventListener('click', async () => {
-  checkVerificationButton.disabled = true;
-  await window.auth.currentUser.reload();
-  await showVerifiedApp(window.auth.currentUser);
-  checkVerificationButton.disabled = false;
-  if (!window.auth.currentUser.emailVerified) verificationStatus.textContent = 'We do not see a confirmation yet. Open the link in your email, then try again.';
+checkVerificationButton.addEventListener('click', () => {
+  verificationPanel.classList.add('hidden');
+  authForm.classList.remove('hidden');
+  authStatus.textContent = 'After confirming your email, sign in with your email and password.';
+  document.querySelector('#password').focus();
 });
 
-onAuthStateChanged(window.auth, user => {
-  showVerifiedApp(user);
-});
+if (supabase) {
+  // Keep the auth callback synchronous; defer database calls until it returns.
+  supabase.auth.onAuthStateChange((_event, session) => {
+    setTimeout(() => showVerifiedApp(session?.user || null), 0);
+  });
+} else {
+  authStatus.textContent = 'Supabase is not connected yet. Add your project URL and publishable key in supabase-config.js (see README.md).';
+  authForm.querySelectorAll('button, input').forEach(element => { element.disabled = true; });
+}

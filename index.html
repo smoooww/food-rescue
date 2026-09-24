@@ -49,25 +49,7 @@
     @media(max-width:600px){.listing-card{grid-template-columns:minmax(0,1fr) 64px 68px}.listing-photo-slot{width:64px;height:64px}.listing-main h3,.staff-stock-row strong,.listing-form .field{font-size:18px}.listing-meta,.listing-notes{font-size:13px}.remove-button{width:68px}.inventory-sort{align-items:flex-start;flex-wrap:wrap;padding:14px 20px}.inventory-sort-button{font-size:11px;padding:7px 9px}}
   </style>
 </head>
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
-  import { getFirestore } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-  import { getAuth } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyDDfrZNJNrCTiuRQIYmzycgBrTZ46FZzfM",
-    authDomain: "food-rescue-4c0d7.firebaseapp.com",
-    projectId: "food-rescue-4c0d7",
-    storageBucket: "food-rescue-4c0d7.firebasestorage.app",
-    messagingSenderId: "53809238962",
-    appId: "1:53809238962:web:0962c4f9e1d1bc0347caab",
-    measurementId: "G-K7231YFFWN"
-  };
-
-  const app = initializeApp(firebaseConfig);
-  window.db = getFirestore(app);
-  window.auth = getAuth(app);
-</script>
 <body>
   <header class="topbar">
     <a class="brand" href="#top" aria-label="Mustang Pantry home"><span class="brand-mark">m</span><span>mustang pantry</span></a>
@@ -95,6 +77,7 @@
   </section>
 
   <main id="top" class="hidden">
+    <p id="inventoryStatus" class="form-status" role="status"></p>
     <section class="intro">
       <div class="eyebrow"><span class="eyebrow-line"></span>Campus food pantry<span class="eyebrow-line"></span></div>
       <h1>Today’s pantry,<br /><em>at a glance.</em></h1>
