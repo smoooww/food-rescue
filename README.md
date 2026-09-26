@@ -1,6 +1,6 @@
 # Mustang Pantry
 
-A static web app using Supabase Auth, Postgres, and Realtime to manage daily pantry stock. Photos use the existing Cloudinary upload configuration in `app.js`.
+A static web app using Supabase Auth, Postgres, and Realtime to manage pantry stock. Photos use the existing Cloudinary upload configuration in `app.js`.
 
 ## Connect Supabase
 
@@ -35,7 +35,7 @@ A static web app using Supabase Auth, Postgres, and Realtime to manage daily pan
 
 ## Staff access
 
-The configured staff account is `pantry-staff@calpoly.edu`. For a demo, create this account in Supabase Authentication → Users with a private password and auto-confirm its email. This does not create a real email inbox. The account can add items, adjust stock, copy yesterday's list, and remove items. Do not publish its password. For production, use a staff mailbox you control. Ordinary confirmed Cal Poly accounts can only read inventory.
+The configured staff account is `pantry-staff@calpoly.edu`. For a demo, create this account in Supabase Authentication → Users with a private password and auto-confirm its email. This does not create a real email inbox. The account can add items, adjust stock and remove items. Do not publish its password. For production, use a staff mailbox you control. Ordinary confirmed Cal Poly accounts can only read inventory.
 
 To use a different staff mailbox, update both `pantryStaffEmails` in `app.js` and the staff email in `supabase/schema.sql`, then rerun the SQL. Use a real Cal Poly address. Changing only the frontend does not grant database access. SQL checks confirmation for staff as well as students.
 
@@ -82,10 +82,12 @@ The controller tests use a mocked Supabase client; they do not verify live email
 
 ## Files to keep
 
-- `index.html`, `styles.css`, and `theme.css`: website layout and styling.
+- `index.html` and `styles.css`: website layout and styling.
 - `app.js`, `supabase-client.js`, and `supabase-config.js`: app behavior and Supabase connection.
 - `supabase/schema.sql`: database setup and access policies. It is not loaded by the website, but keep it to recreate the database or update administrator permissions. Editing this file only takes effect after running it in Supabase.
 - `tests/app.test.mjs`: local regression checks.
 - `README.md` and `.gitignore`: setup documentation and Git configuration.
 
 The local `.agents/` directory contains editor/agent tooling, not website code.
+
+Inventory stays visible across days until staff removes it. The `stockDate` column records when an item was added; it no longer limits visibility. Previously hidden items will reappear, including separate copies made with the old daily-copy feature. Staff can remove any duplicate entries.

@@ -36,7 +36,6 @@ const photoFile = document.querySelector('#photoFile');
 const staffTools = document.querySelector('.staff-tools');
 const inventorySortControls = document.querySelector('.inventory-sort');
 const staffInventory = document.querySelector('#staffInventory');
-const copyYesterdayButton = document.querySelector('#copyYesterday');
 const inventorySortButtons = document.querySelectorAll('[data-inventory-sort]');
 const feedSortButtons = document.querySelectorAll('[data-feed-sort]');
 let liveListings = [];
@@ -47,14 +46,6 @@ let feedSort = 'alphabetical';
 function localDateKey(timestamp = Date.now()) {
   const date = new Date(timestamp);
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-}
-
-function listingDate(listing) {
-  return listing.stockDate || localDateKey(listing.postedAt);
-}
-
-function todayListings() {
-  return liveListings.filter(listing => listingDate(listing) === localDateKey());
 }
 
 function listingQuantity(listing) {
@@ -91,7 +82,7 @@ function escapeHtml(value) {
 function renderFeed(listings = liveListings) {
   const stockOrder = { low: 1, moderate: 2, high: 3 };
   const sortedListings = [...listings]
-    .filter(listing => listingDate(listing) === localDateKey() && listingQuantity(listing) > 0)
+    .filter(listing => listingQuantity(listing) > 0)
     .sort((first, second) => {
       if (feedSort === 'high') return stockOrder[listingStockLevel(second)] - stockOrder[listingStockLevel(first)] || first.foodType.localeCompare(second.foodType);
       if (feedSort === 'low') return stockOrder[listingStockLevel(first)] - stockOrder[listingStockLevel(second)] || first.foodType.localeCompare(second.foodType);
@@ -103,18 +94,18 @@ function renderFeed(listings = liveListings) {
     <article class="listing-card">
       <div class="listing-main">
         <h3>${escapeHtml(listing.foodType)}</h3>
-        <div class="listing-meta"><span class="category">${escapeHtml(listing.category || 'Pantry item')}</span><span class="updated">${stockLevelLabel(listing)}</span></div>
+        <div class="listing-meta"><span class="category">${escapeHtml(listing.category || 'Pantry item')}</span><span class="updated stock-${listingStockLevel(listing)}">${stockLevelLabel(listing)}</span></div>
         ${listing.notes ? `<p class="listing-notes">${escapeHtml(listing.notes)}</p>` : ''}
       </div>
       <div class="listing-photo-slot">${listing.photoUrl ? `<img class="listing-photo" src="${escapeHtml(listing.photoUrl)}" alt="${escapeHtml(listing.foodType)}" loading="lazy" />` : ''}</div>
-      ${canManageStock ? `<button class="remove-button" type="button" data-remove-id="${listing.id}" aria-label="Remove ${escapeHtml(listing.foodType)} from today\'s stock" title="Remove item"><span class="trash-icon" aria-hidden="true"></span><span class="remove-label">Remove item</span></button>` : ''}
+      ${canManageStock ? `<button class="remove-button" type="button" data-remove-id="${listing.id}" aria-label="Remove ${escapeHtml(listing.foodType)} from inventory" title="Remove item"><span class="trash-icon" aria-hidden="true"></span><span class="remove-label">Remove item</span></button>` : ''}
     </article>`).join('');
   emptyState.classList.toggle('hidden', sortedListings.length > 0);
 }
 
 function renderStaffInventory() {
   const stockOrder = { low: 1, moderate: 2, high: 3 };
-  const sortedListings = todayListings().sort((first, second) => {
+  const sortedListings = [...liveListings].sort((first, second) => {
     if (inventorySort === 'high') return stockOrder[listingStockLevel(second)] - stockOrder[listingStockLevel(first)] || first.foodType.localeCompare(second.foodType);
     if (inventorySort === 'low') return stockOrder[listingStockLevel(first)] - stockOrder[listingStockLevel(second)] || first.foodType.localeCompare(second.foodType);
     return first.foodType.localeCompare(second.foodType);
@@ -123,13 +114,13 @@ function renderStaffInventory() {
     <article class="staff-stock-row">
       <div><strong>${escapeHtml(listing.foodType)}</strong><span>${escapeHtml(listing.category || 'Pantry item')}</span></div>
       <div class="quantity-control" aria-label="Adjust ${escapeHtml(listing.foodType)} quantity">
-        <select class="stock-level-input" data-stock-level-input data-listing-id="${listing.id}" aria-label="${escapeHtml(listing.foodType)} stock level">
+        <select class="stock-level-input stock-${listingStockLevel(listing)}" data-stock-level-input data-listing-id="${listing.id}" aria-label="${escapeHtml(listing.foodType)} stock level">
           <option value="low" ${listingStockLevel(listing) === 'low' ? 'selected' : ''}>Low stock</option>
           <option value="moderate" ${listingStockLevel(listing) === 'moderate' ? 'selected' : ''}>Moderate stock</option>
           <option value="high" ${listingStockLevel(listing) === 'high' ? 'selected' : ''}>High stock</option>
         </select>
       </div>
-    </article>`).join('') : '<p class="inventory-empty">Nothing on today\'s list yet. Copy yesterday\'s list or add a new item below.</p>';
+    </article>`).join('') : '<p class="inventory-empty">No items in inventory yet. Add a new item below.</p>';
 }
 
 function setRole(role) {
@@ -243,7 +234,7 @@ function showPendingVerification(email) {
 
 form.addEventListener('submit', async event => {
   event.preventDefault();
-  showFormStatus("Adding today's stock...");
+  showFormStatus("Adding item...");
   const data = new FormData(form);
   try {
     const stockLevel = data.get('stockLevel');
@@ -288,40 +279,9 @@ staffInventory.addEventListener('change', async event => {
   }
 });
 
-copyYesterdayButton.addEventListener('click', async () => {
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayKey = localDateKey(yesterday.getTime());
-  const existingKeys = new Set(todayListings().map(listing => `${listing.foodType}|${listing.category}`));
-  const yesterdayListings = liveListings.filter(listing => listingDate(listing) === yesterdayKey && !existingKeys.has(`${listing.foodType}|${listing.category}`));
-  if (!yesterdayListings.length) {
-    showFormStatus('There are no new items to copy from yesterday.');
-    return;
-  }
-  copyYesterdayButton.disabled = true;
-  showFormStatus('Copying yesterday\'s list...');
-  try {
-    const copies = yesterdayListings.map(listing => {
-      const stockLevel = listingStockLevel(listing);
-      const copy = { foodType: listing.foodType, category: listing.category, photoUrl: listing.photoUrl || '', notes: listing.notes || '', postedAt: Date.now(), stockDate: localDateKey(), stockLevel, quantity: stockLevelQuantities[stockLevel], status: 'available', postedBy: currentUser.email };
-      return copy;
-    });
-    const copiedListings = await insertListings(copies);
-    const copiedIds = new Set(copiedListings.map(item => item.id));
-    liveListings = [...copiedListings, ...liveListings.filter(item => !copiedIds.has(item.id))];
-    renderStaffInventory();
-    showFormStatus(`${copiedListings.length} item${copiedListings.length === 1 ? '' : 's'} copied. Adjust quantities below.`);
-  } catch (error) {
-    console.error('Unable to copy yesterday\'s listings:', error);
-    showFormStatus('Yesterday\'s list could not be copied. Check your staff permissions.', true);
-  } finally {
-    copyYesterdayButton.disabled = false;
-  }
-});
-
 listingFeed.addEventListener('click', async event => {
   const button = event.target.closest('[data-remove-id]');
-  if (!button || !window.confirm("Remove this item from today's pantry stock?")) return;
+  if (!button || !window.confirm("Remove this item from pantry stock?")) return;
   button.disabled = true;
   try {
     const { error } = await supabase.from('listings').delete().eq('id', button.dataset.removeId).select('id').single();

@@ -110,3 +110,19 @@ assert.equal(app.element('#top').classList.contains('hidden'), false);
 assert.equal(app.element('[data-role="staff"]').classList.contains('hidden'), true);
 assert.equal(app.element('#listingForm').classList.contains('hidden'), true);
 console.log('Passed: former administrator retains browsing access without staff controls.');
+
+const persistent = harness();
+persistent.setRows([
+  { id: 'old', foodType: 'Rice from last month', category: 'Grains', quantity: 5, stockDate: '2020-01-01' },
+  { id: 'empty', foodType: 'Out of stock beans', category: 'Canned food', quantity: 0, stockDate: '2020-01-01' }
+]);
+persistent.auth({ email: 'pantry-staff@calpoly.edu', email_confirmed_at: '2026-01-01' });
+await tick();
+assert.match(persistent.element('#listingFeed').innerHTML, /Rice from last month/);
+assert.match(persistent.element('#staffInventory').innerHTML, /Rice from last month/);
+assert.doesNotMatch(persistent.element('#listingFeed').innerHTML, /Out of stock beans/);
+assert.match(persistent.element('#staffInventory').innerHTML, /Out of stock beans/);
+persistent.setRows([]);
+await vm.runInContext('refreshListings()', persistent.context);
+assert.equal(persistent.element('#listingFeed').innerHTML, '');
+console.log('Passed: older inventory remains visible, zero stock stays hidden from students, and removed rows disappear.');
